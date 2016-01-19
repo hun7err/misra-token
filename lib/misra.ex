@@ -58,7 +58,7 @@ defmodule MisraToken do
         if meeting(m, value), do: incarnate next, value
 
         send next, {:ping, value+1}
-        loop i, next, value
+        loop i, next, value, coordinator
 
       {:pong, value} ->
         if m == value, do: regenerate next, value
@@ -67,7 +67,7 @@ defmodule MisraToken do
         if meeting(m, value), do: incarnate next, value
 
         send next, {:pong, value-1}
-        loop i, next, value
+        loop i, next, value, coordinator
     end
   end
 
