@@ -8,18 +8,9 @@ defmodule MisraToken do
   defp regenerate(x), do: propagate next, [{:ping, abs(x)}, {:pong, -abs(x)}]
   defp incarnate(x), do: propagate next, [{:ping, abs(x)+1}, {:pong, -abs(x)-1}]
   
-  #defp regenerate(x) do
-  #  send next, {:ping, abs(x)}
-  #   send next, {:pong, -abs(x)}
-  #end
-  #defp incarnate(x) do
-  #  send next, {:ping, abs(x)+1}
-  #  send next, {:pong, -abs(x)-1}
-  #end
-
   def cs(i) do
     IO.puts "entering CS on " <> to_string i
-    :timer.sleep 2000
+    :timer.sleep 1000
     IO.puts "leaving CS on " <> to_string i
   end
 
@@ -27,7 +18,6 @@ defmodule MisraToken do
 
   def start(i) do
     if i == 0, do: propagate self, [{:ping, 1}, {:pong, -1}]
-    
     loop i, 0
   end
 
