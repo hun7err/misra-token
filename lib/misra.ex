@@ -44,7 +44,15 @@ defmodule MisraToken do
     end
   end
 
+  def nodePid(ip_addr) do
+    name = String.atom("misra@" <> ip_addr)
+    Node.spawn_link name, fn -> :ok end
+  end
+
   def start(i, next, coordinator) do
+    next = nodePid next
+    :timer.sleep 5000
+
     if i == 0, do: propagate self, [{:ping, 1}, {:pong, -1}]
     loop i, next, 0, coordinator
   end
@@ -71,17 +79,12 @@ defmodule MisraToken do
     end
   end
 
-  def nodePid(ip_addr) do
-    name = String.atom("misra@" <> ip_addr)
-    Node.spawn_link name, fn -> :ok end
-  end
-
-  def init(next_ip, id) do
-    pid = nodePid next_ip
-
-    :timer.sleep 5000
-    start id, pid
-  end
+  #def init(next_ip, id) do
+  #  pid = nodePid next_ip
+  #
+  #  :timer.sleep 5000
+  #  start id, pid
+  #end
 
   def main(args) do
     switches = [id: :integer, count: :integer, ip: :string, next: :string]
