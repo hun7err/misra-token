@@ -28,7 +28,7 @@ do
 done
 NEXT_IPS_STR=$(joinString "," "${NEXT_IPS[@]}" | sed -e 's/,/\\\",\\\"/g')
 
-CMD="MisraToken.coordLoop $IDS, $IPS, $NEXT_IPS_STR"
+CMD="MisraToken.coordLoop($IDS, $IPS, $NEXT_IPS_STR)"
 echo $CMD
 
 iex -S mix run -e "\"$CMD\""

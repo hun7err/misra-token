@@ -33,7 +33,6 @@ defmodule MisraToken do
   def startNodes(ips, _, _) when ips == [], do: :ok
 
   def coordLoop(ips, ids, next, start \\ true) do
-    # ...
     if start do
       startNodes(ips, ids, next)
       IO.puts "nodes started, waiting for incoming messages..."
