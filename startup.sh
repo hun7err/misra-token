@@ -15,23 +15,21 @@ done
 IP_ADDRS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1 | xargs sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' | sed ':a;N;$!ba;s/\r\n/ /g'))
 CONT_IDS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1))
 
-function joinString { local IFS="$1"; shift; echo "[\"$*\"]"; }
+function joinString { local IFS="$1"; shift; echo "[\\\"$*\\\"]"; }
 function joinInt { local IFS="$1"; shift; echo "[$*]"; }
 
-IPS=$(joinString "\", \"" "${IP_ADDRS[@]}")
-IDS=$(joinInt ", " $(seq 0 $(($NODE_COUNT-1))))
-NEXT_IPS=$(seq 1 $NODE_COUNT)
+IPS=$(joinString "," "${IP_ADDRS[@]}" | sed -e 's/,/\\\",\\\"/g')
+IDS=$(joinInt "," $(seq 0 $(($NODE_COUNT-1))))
+declare -a NEXT_IPS
 
-for i in $(seq 1 $NODE_COUNT)
+for ID in $(seq 1 $NODE_COUNT)
 do
-    NEXT_IPS[$i] = ${IP_ADDRS[$(($i % $NODE_COUNT))]}
+    NEXT_IPS[$(($ID-1))]=${IP_ADDRS[$(($ID % $NODE_COUNT))]}
 done
-NEXT_IPS_STR=$(joinString "\", \"" "${NEXT_IPS[@]}")
+NEXT_IPS_STR=$(joinString "," "${NEXT_IPS[@]}" | sed -e 's/,/\\\",\\\"/g')
 
-iex -S mix run -e "MisraToken.coordStart $IDS, $IPS, $NEXT_IPS"
-#for i in $(seq 1 $NODE_COUNT)
-#do
-    #echo "${CONT_IDS[(($i-1))]} -> ${IP_ADDRS[$(($i % $NODE_COUNT))]}"
-#done
+CMD="MisraToken.coordLoop $IDS, $IPS, $NEXT_IPS_STR"
+echo $CMD
 
-#iex -S mix -e ''
+iex -S mix run -e "\"$CMD\""
+

@@ -26,32 +26,40 @@ defmodule MisraToken do
 
     name = String.to_atom("misra@" <> ip_head)
     Node.ping name
-    Node.spawn_link name, MisraToken, :start, id_head, nx_head, self
+    Node.spawn_link name, MisraToken, :start, [id_head, nx_head, self]
 
     startNodes ip_tail, id_tail, nx_tail
   end
-  def startNodes(ips, ids, next) when ips == [], do: :ok
+  def startNodes(ips, _, _) when ips == [], do: :ok
 
-  def coordStart(ips, ids, next) do
+  def coordLoop(ips, ids, next, start \\ true) do
     # ...
-    startNodes ips, ids, next
+    if start do
+      startNodes(ips, ids, next)
+      IO.puts "nodes started, waiting for incoming messages..."
+    end
 
     receive do
+      {:start, id} ->
+        IO.puts "node " <> to_string(id) <> " started"
       {:cs_enter, id} ->
-        IO.puts to_string(id) <> " entering cs"
+        IO.puts "node " <> to_string(id) <> " entering cs"
       {:cs_exit, id} ->
-        IO.puts to_string(id) <> " leaving cs"
+        IO.puts "node " <> to_string(id) <> " leaving cs"
     end
+
+    coordLoop(ips, ids, next, false)
   end
 
   def nodePid(ip_addr) do
-    name = String.atom("misra@" <> ip_addr)
+    name = String.to_atom("misra@" <> ip_addr)
     Node.spawn_link name, fn -> :ok end
   end
 
   def start(i, next, coordinator) do
     next = nodePid next
     :timer.sleep 5000
+    send coordinator, {:start, i}
 
     if i == 0, do: propagate self, [{:ping, 1}, {:pong, -1}]
     loop i, next, 0, coordinator
@@ -78,13 +86,6 @@ defmodule MisraToken do
         loop i, next, value, coordinator
     end
   end
-
-  #def init(next_ip, id) do
-  #  pid = nodePid next_ip
-  #
-  #  :timer.sleep 5000
-  #  start id, pid
-  #end
 
   def main(args) do
     switches = [id: :integer, count: :integer, ip: :string, next: :string]
