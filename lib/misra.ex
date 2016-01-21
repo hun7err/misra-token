@@ -52,10 +52,12 @@ defmodule MisraToken do
 
   def nodePid(ip_addr) do
     name = String.to_atom("misra@" <> ip_addr)
+    Node.ping name
     Node.spawn_link name, fn -> :ok end
   end
 
   def start(i, next, coordinator) do
+    IO.puts "node " <> to_string(i) <> " is getting PID for a neighbour at " <> next
     next = nodePid next
     :timer.sleep 5000
     send coordinator, {:start, i}
