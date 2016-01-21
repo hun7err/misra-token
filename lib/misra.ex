@@ -75,6 +75,7 @@ defmodule MisraToken do
         cs(i, coordinator)
         if meeting(m, value), do: incarnate next, value
 
+        IO.puts "node " <> to_string(i) <> " sending :ping to " <> to_string(:erlang.pid_to_list(next))
         send next, {:ping, value+1}
         loop i, next, value, coordinator
 
@@ -85,6 +86,7 @@ defmodule MisraToken do
         :timer.sleep 500
         if meeting(m, value), do: incarnate next, value
 
+        IO.puts "node " <> to_string(i) <> " sending :pong to " <> to_string(:erlang.pid_to_list(next))
         send next, {:pong, value-1}
         loop i, next, value, coordinator
     end
