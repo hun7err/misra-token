@@ -10,7 +10,7 @@ fi
 
 for NODE_ID in $(seq 1 $NODE_COUNT)
 do
-    sudo docker run -d --name "misra-node-$NODE_ID" -t misra-token /bin/bash -c '(export IP_ADDR=`ip a | tail -4 | head -1 | tr -s " " | cut -d" " -f3 | cut -d/ -f1` && iex --name "misra@$IP_ADDR" --cookie test)'
+    sudo docker run -d --name "misra-node-$NODE_ID" -t misra-token /bin/bash -c '(export IP_ADDR=`ip a | tail -4 | head -1 | tr -s " " | cut -d" " -f3 | cut -d/ -f1` && iex --name "misra@$IP_ADDR" --cookie test -S mix)'
 done
 IP_ADDRS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1 | xargs sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' | sed ':a;N;$!ba;s/\r\n/ /g'))
 CONT_IDS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1))
