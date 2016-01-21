@@ -59,6 +59,7 @@ defmodule MisraToken do
   def start(i, next, coordinator) do
     IO.puts "node " <> to_string(i) <> " is getting PID for a neighbour at " <> next
     next = nodePid next
+    IO.puts "neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(next)
     :timer.sleep 5000
     send coordinator, {:start, i}
 
