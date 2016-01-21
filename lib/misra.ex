@@ -28,7 +28,7 @@ defmodule MisraToken do
     Node.ping name
     Node.spawn_link name, MisraToken, :start, [id_head, nx_head, self]
 
-    startNodes ip_tail, id_tail, nx_tail
+    startNodes id_tail, ip_tail, nx_tail
   end
   def startNodes(ids, _, _) when ids == [], do: :ok
 
@@ -67,6 +67,7 @@ defmodule MisraToken do
   def loop(i, next, m, coordinator) do
     receive do
       {:ping, value} ->
+        IO.puts "node " <> i <> " received ping, value: " <> value
         if m == value, do: regenerate next, value
 
         cs(i, coordinator)
@@ -76,6 +77,7 @@ defmodule MisraToken do
         loop i, next, value, coordinator
 
       {:pong, value} ->
+        IO.puts "node " <> i <> " received pong, value: " <> value
         if m == value, do: regenerate next, value
 
         :timer.sleep 500
