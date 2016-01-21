@@ -17,7 +17,7 @@ defmodule MisraToken do
     IO.puts "leaving CS on " <> to_string i
   end
 
-  def meeting(m, value), do: m*value < 0
+  def meeting(m, value), do: m*value < 0 and abs(value) == abs(m)
 
   def startNodes(ids, ips, next) when ips != [] do
     [ip_head|ip_tail] = ips
