@@ -82,7 +82,7 @@ defmodule MisraToken do
           IO.puts "node " <> to_string(i) <> " incarnating token (PING)"
           incarnate next, value
         else
-          if not pong do
+          if pong != nil do
             IO.puts "node " <> to_string(i) <> " sending :ping to " <> to_string(:erlang.pid_to_list(next))
             send next, {:ping, value+1}
           else
@@ -105,7 +105,7 @@ defmodule MisraToken do
           IO.puts "node " <> to_string(i) <> " incarnating token (PONG)"
           incarnate next, value
         else
-          if not ping do
+          if ping != nil do
             IO.puts "node " <> to_string(i) <> " sending :pong to " <> to_string(:erlang.pid_to_list(next))
             send next, {:pong, value-1}
           else
