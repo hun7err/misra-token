@@ -67,7 +67,7 @@ defmodule MisraToken do
   def loop(i, next, m, coordinator) do
     receive do
       {:ping, value} ->
-        IO.puts "node " <> i <> " received ping, value: " <> value
+        IO.puts "node " <> to_string(i) <> " received ping, value: " <> to_string(value)
         if m == value, do: regenerate next, value
 
         cs(i, coordinator)
@@ -77,7 +77,7 @@ defmodule MisraToken do
         loop i, next, value, coordinator
 
       {:pong, value} ->
-        IO.puts "node " <> i <> " received pong, value: " <> value
+        IO.puts "node " <> to_string(i) <> " received pong, value: " <> to_string(value)
         if m == value, do: regenerate next, value
 
         :timer.sleep 500
