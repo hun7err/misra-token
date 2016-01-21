@@ -19,7 +19,7 @@ defmodule MisraToken do
 
   def meeting(m, value), do: m*value < 0
 
-  def startNodes(ips, ids, next) when ips != [] do
+  def startNodes(ids, ips, next) when ips != [] do
     [ip_head|ip_tail] = ips
     [id_head|id_tail] = ids
     [nx_head|nx_tail] = next
@@ -30,11 +30,11 @@ defmodule MisraToken do
 
     startNodes ip_tail, id_tail, nx_tail
   end
-  def startNodes(ips, _, _) when ips == [], do: :ok
+  def startNodes(ids, _, _) when ids == [], do: :ok
 
-  def coordLoop(ips, ids, next, start \\ true) do
+  def coordLoop(ids, ips, next, start \\ true) do
     if start do
-      startNodes(ips, ids, next)
+      startNodes(ids, ips, next)
       IO.puts "nodes started, waiting for incoming messages..."
     end
 
