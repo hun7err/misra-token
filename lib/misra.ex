@@ -6,7 +6,7 @@ defmodule MisraToken do
   end
   def propagate(_, values) when values == [], do: :ok
 
-  defp regenerate(next, x), do: propagate next, [{:ping, abs(x)}, {:pong, -abs(x)}]
+  defp regenerate(x), do: {abs(x), -abs(x)}
   defp incarnate(next, x), do: propagate next, [{:ping, abs(x)+1}, {:pong, -abs(x)-1}]
   
   def cs(i, coordinator) do
@@ -58,37 +58,61 @@ defmodule MisraToken do
 
   def start(i, next, coordinator) do
     IO.puts "node " <> to_string(i) <> " is getting PID for a neighbour at " <> next
-    next = nodePid next
-    IO.puts "neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(next)
+    pid = nodePid next
+    IO.puts "neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(pid)
     :timer.sleep 5000
     send coordinator, {:start, i}
 
     if i == 0, do: propagate self, [{:ping, 1}, {:pong, -1}]
-    loop i, next, 0, coordinator
+    loop i, pid, 0, coordinator
   end
 
   def loop(i, next, m, coordinator) do
     receive do
       {:ping, value} ->
         IO.puts "node " <> to_string(i) <> " received ping, value: " <> to_string(value)
-        if m == value, do: regenerate next, value
+        pong = nil
+
+        if m == value do
+          {value, pong} = regenerate value
+        end
 
         cs(i, coordinator)
-        if meeting(m, value), do: incarnate next, value
-
-        IO.puts "node " <> to_string(i) <> " sending :ping to " <> to_string(:erlang.pid_to_list(next))
-        send next, {:ping, value+1}
+        if meeting(m, value) do
+          IO.puts "node " <> to_string(i) <> " incarnating token (PING)"
+          incarnate next, value
+        else
+          if not pong do
+            IO.puts "node " <> to_string(i) <> " sending :ping to " <> to_string(:erlang.pid_to_list(next))
+            send next, {:ping, value+1}
+          else
+            send next, {:ping, value}
+            send next, {:pong, pong}
+          end
+        end
         loop i, next, value, coordinator
 
       {:pong, value} ->
         IO.puts "node " <> to_string(i) <> " received pong, value: " <> to_string(value)
-        if m == value, do: regenerate next, value
+        ping = nil
+
+        if m == value do
+          {ping, value} = regenerate value
+        end
 
         :timer.sleep 500
-        if meeting(m, value), do: incarnate next, value
-
-        IO.puts "node " <> to_string(i) <> " sending :pong to " <> to_string(:erlang.pid_to_list(next))
-        send next, {:pong, value-1}
+        if meeting(m, value) do
+          IO.puts "node " <> to_string(i) <> " incarnating token (PONG)"
+          incarnate next, value
+        else
+          if not ping do
+            IO.puts "node " <> to_string(i) <> " sending :pong to " <> to_string(:erlang.pid_to_list(next))
+            send next, {:pong, value-1}
+          else
+            send next, {:ping, ping}
+            send next, {:pong, value}
+          end
+        end
         loop i, next, value, coordinator
     end
   end
