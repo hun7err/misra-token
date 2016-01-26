@@ -28,8 +28,8 @@ do
 done
 NEXT_IPS_STR=$(joinString "," "${NEXT_IPS[@]}" | sed -e 's/,/\",\"/g')
 
-CMD="MisraToken.coordLoop($IDS, $IPS, $NEXT_IPS_STR)"
-echo $CMD
+CMD="MisraToken.coordLoop $IDS,$IPS,$NEXT_IPS_STR"
+echo "cmd: '$CMD'"
 
-iex --name "coordinator@172.17.0.1" --cookie test -S mix run -e "'$CMD'"
+iex --name "coordinator@172.17.0.1" --cookie test -S mix
 

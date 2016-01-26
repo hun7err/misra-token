@@ -15,6 +15,8 @@ defmodule MisraToken do
     :timer.sleep 1000
     send coordinator, {:cs_exit, i}
     IO.puts "leaving CS on " <> to_string i
+
+    # send self, :csend
   end
 
   def meeting(m, value), do: m*value < 0 and abs(value) == abs(m)
@@ -65,6 +67,32 @@ defmodule MisraToken do
 
     if i == 0, do: propagate self, [{:ping, 1}, {:pong, -1}]
     loop i, pid, 0, coordinator
+  end
+
+  def loop(what, node_id, next_pid, m, other_pid, has_ping, has_pong) do
+    :timer.sleep 100
+
+    receive do
+      {:csend, value} -> # CS end
+        send next_pid_pid, {:ping, value}
+        
+        loop(what, node_id, next_pid, m, other_pid, false, has_pong),
+      {what, value} ->
+        if what == :ping do
+          if not has_ping, do:
+            spawn(MisraToken, :cs, [node_id, value, self]),
+          else:
+            send self, {:ping, value}
+
+          loop what, node_id, next_pid, m, other_pid, true, has_pong
+        else
+          loop what, node_id, next_pid, m, other_pid, has_ping, true
+        end
+      {:chm, next_m} -> # change of "m"
+        loop what, node_id, next_pid, next_m, other_pid, has_ping, has_pong
+      #{:chstate, state} ->  # what did I do this for, exactly?
+      #  loop what, node_id, next_pid, m, other_pid, has_ping, has_pong
+    end
   end
 
   def loop(i, next, m, coordinator) do
