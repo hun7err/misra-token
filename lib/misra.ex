@@ -10,14 +10,14 @@ defmodule MisraToken do
   defp incarnate(next, x), do: propagate next, [{:ping, abs(x)+1}, {:pong, -abs(x)-1}]
   
   def cs(i, parent) do
-    IO.puts "node " <> to_string i <> ": entering CS"
+    IO.puts "node " <> to_string(i) <> ": entering CS"
     :timer.sleep 1000
-    IO.puts "node " <> to_string i <> ": leaving CS"
+    IO.puts "node " <> to_string(i) <> ": leaving CS"
     
     send parent, :csend
   end
 
-  def meeting(m, value), do: m*value < 0 and abs(value) == abs(m)
+  # def meeting(m, value), do: m*value < 0 and abs(value) == abs(m)
 
   def startNodes(ids, ips, next) when ips != [] do
     [ip_head|ip_tail] = ips
@@ -68,6 +68,13 @@ defmodule MisraToken do
     end
   end
 
+  def coordLoop(ids, ips, next, start \\ true) do
+    if start do
+      startNodes(ids, ips, next)
+      IO.puts "nodes started, waiting for incoming messages..."
+    end
+  end
+
   def other(what, values) do
     {ping, pong} = values
     case what do
@@ -84,9 +91,11 @@ defmodule MisraToken do
         send next_pid, {:ping, value}
         
         loop(what, node_id, next_pid, m, false, has_pong)
+
       {what, value} ->
         if m == value do
           msg = other what, regenerate(value)
+          {_, value} = msg
           send next_pid, msg
         end
           
@@ -100,11 +109,11 @@ defmodule MisraToken do
             loop what, node_id, next_pid, value, true, has_pong
           else
             send self, {:ping, value}
-            loop what, node_id, next_pid, m, true, has_pong
+            loop what, node_id, next_pid, value, true, has_pong
           end
         else
           send next_pid, {:pong, value}
-          loop what, node_id, next_pid, m, has_ping, true
+          loop what, node_id, next_pid, value, has_ping, true
         end
       #{:chm, next_m} -> # change of "m"
         #loop what, node_id, next_pid, next_m, other_pid, has_ping, has_pong
