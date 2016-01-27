@@ -1,2 +1,3 @@
 #!/bin/bash
-docker build -t misra-token --rm=true .
+cp ../lib/misra.ex ./
+sudo docker build -t misra-token --rm=true .

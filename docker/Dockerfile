@@ -1,10 +1,5 @@
 from trenpixster/elixir
 
-run echo "ayyyyy lmao"
-run git init && git remote add origin https://github.com/hun7err/misra-token.git
-run git fetch
-run git checkout -t origin/master
-run mix deps.get
-run mix compile && mix escript.build
+copy "misra.ex" "misra.ex"
 
 expose 4369

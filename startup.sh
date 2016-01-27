@@ -10,9 +10,13 @@ fi
 
 for NODE_ID in $(seq 1 $NODE_COUNT)
 do
-    sudo docker run -d --name "misra-node-$NODE_ID" -t misra-token /bin/bash -c '(export IP_ADDR=`ip a | tail -4 | head -1 | tr -s " " | cut -d" " -f3 | cut -d/ -f1` && iex --name "misra@$IP_ADDR" --cookie test -S mix)'
+    sudo docker run -d --net="hydra0" --name="misra-node-$NODE_ID" -t misra-token /bin/bash -c '(export IP_ADDR=`ip a | tail -4 | head -1 | tr -s " " | cut -d" " -f3 | cut -d/ -f1` && iex --name "misra@$IP_ADDR" --cookie test -r "misra.ex")'
 done
-IP_ADDRS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1 | xargs sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' | sed ':a;N;$!ba;s/\r\n/ /g'))
+
+sleep 0.5
+
+#IP_ADDRS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1 | xargs sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' | sed ':a;N;$!ba;s/\r\n/ /g'))
+IP_ADDRS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1 | xargs sudo docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' | sed ':a;N;$!ba;s/\r\n/ /g'))
 CONT_IDS=($(sudo docker ps | grep misra | tr -s ' ' | sort -k12 | cut -d' ' -f1))
 
 function joinString { local IFS="$1"; shift; echo "[\"$*\"]"; }
@@ -31,5 +35,5 @@ NEXT_IPS_STR=$(joinString "," "${NEXT_IPS[@]}" | sed -e 's/,/\",\"/g')
 CMD="MisraToken.coordLoop $IDS,$IPS,$NEXT_IPS_STR"
 echo "cmd: '$CMD'"
 
-iex --name "coordinator@172.17.0.1" --cookie test -S mix
+iex --name "coordinator@172.18.0.1" --cookie test -S mix
 

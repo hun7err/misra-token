@@ -9,15 +9,13 @@ defmodule MisraToken do
   defp regenerate(x), do: {abs(x), -abs(x)}
   defp incarnate(next, x), do: propagate next, [{:ping, abs(x)+1}, {:pong, -abs(x)-1}]
   
-  def cs(i, parent) do
+  def cs(i, parent, value) do
     IO.puts "node " <> to_string(i) <> ": entering CS"
-    :timer.sleep 1000
+    :timer.sleep 2000
     IO.puts "node " <> to_string(i) <> ": leaving CS"
     
-    send parent, :csend
+    send parent, {:csend, value}
   end
-
-  # def meeting(m, value), do: m*value < 0 and abs(value) == abs(m)
 
   def startNodes(ids, ips, next) when ips != [] do
     [ip_head|ip_tail] = ips
@@ -42,24 +40,23 @@ defmodule MisraToken do
     IO.puts "node " <> to_string(i) <> " is getting PID for a neighbour at " <> next
     pid = nodePid next
     IO.puts "neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(pid)
-    :timer.sleep 5000
+    :timer.sleep 2000
     send coordinator, {:start, i}
-
-    if i == 0, do:
-      propagate self, [{:ping, 1}, {:pong, -1}]
 
     pingPid = spawn MisraToken, :loop, [:ping, i, pid, 0, false, false]
     pongPid = spawn MisraToken, :loop, [:pong, i, pid, 0, false, false]
 
-    send pingPid, {:ping, 1}
-    send pongPid, {:pong, -1}
+    if i == 0, do:
+      propagate self, [{:ping, 1}, {:pong, -1}]
 
-    supervisor pingPid, pongPid
+    supervisor i, pingPid, pongPid
   end
 
-  def supervisor(pingPid, pongPid) do
+  def supervisor(id, pingPid, pongPid) do
     receive do
       {what, value} ->
+        IO.puts "node " <> to_string(id) <> ": supervisor received '" <> to_string(what) <> "' with value " <> to_string(value)
+
         if what in [:ping, :csend] do
           send pingPid, {what, value}
         else
@@ -84,29 +81,32 @@ defmodule MisraToken do
   end
 
   def loop(what, node_id, next_pid, m, has_ping, has_pong) do
-    :timer.sleep 300
+    :timer.sleep 500
 
     receive do
       {:csend, value} -> # CS end
+        IO.puts "node " <> to_string(node_id) <> ": PASSing PING to the next node"
         send next_pid, {:ping, value}
-        
+
         loop(what, node_id, next_pid, value, false, has_pong)
 
       {what, value} ->
         if m == value do
-          IO.puts "node " <> to_string(node_id) <> ": regenerating tokens"
+          IO.puts "node " <> to_string(node_id) <> ": REGENerating tokens"
+
           msg = other what, regenerate(value)
           {_, value} = msg
           send next_pid, msg
         end
           
         if has_ping and has_pong and abs(m) == abs(value) do
+          IO.puts "node " <> to_string(node_id) <>": INCarnating tokens"
           incarnate next_pid, value
         end
 
         if what == :ping do
           if not has_ping do
-            spawn MisraToken, :cs, [node_id, self]
+            spawn MisraToken, :cs, [node_id, self, value]
             loop what, node_id, next_pid, m, true, has_pong
           else
             send self, {:ping, value}
