@@ -90,10 +90,11 @@ defmodule MisraToken do
       {:csend, value} -> # CS end
         send next_pid, {:ping, value}
         
-        loop(what, node_id, next_pid, m, false, has_pong)
+        loop(what, node_id, next_pid, value, false, has_pong)
 
       {what, value} ->
         if m == value do
+          IO.puts "node " <> to_string(node_id) <> ": regenerating tokens"
           msg = other what, regenerate(value)
           {_, value} = msg
           send next_pid, msg
@@ -106,10 +107,10 @@ defmodule MisraToken do
         if what == :ping do
           if not has_ping do
             spawn MisraToken, :cs, [node_id, self]
-            loop what, node_id, next_pid, value, true, has_pong
+            loop what, node_id, next_pid, m, true, has_pong
           else
             send self, {:ping, value}
-            loop what, node_id, next_pid, value, true, has_pong
+            loop what, node_id, next_pid, m, true, has_pong
           end
         else
           send next_pid, {:pong, value}
