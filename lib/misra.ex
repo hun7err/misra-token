@@ -17,30 +17,39 @@ defmodule MisraToken do
     send parent, {:csend, value}
   end
 
-  def startNodes(ids, ips, next) when ips != [] do
+  def startNodes(ids, ips, next, nid) when ips != [] do
     [ip_head|ip_tail] = ips
     [id_head|id_tail] = ids
     [nx_head|nx_tail] = next
+    [ni_head|ni_tail] = nid
 
     name = String.to_atom("misra@" <> ip_head)
     Node.ping name
-    Node.spawn_link name, MisraToken, :start, [id_head, nx_head, self]
+    Node.spawn_link name, MisraToken, :start, [id_head, nx_head, ni_head, self]
 
-    startNodes id_tail, ip_tail, nx_tail
+    startNodes id_tail, ip_tail, nx_tail, ni_tail
   end
-  def startNodes(ids, _, _) when ids == [], do: :ok
+  def startNodes(ids, _, _, _) when ids == [], do: :ok
 
-  def nodePid(ip_addr) do
-    name = String.to_atom("misra@" <> ip_addr)
-    Node.ping name
-    Node.spawn_link name, fn -> :ok end
+  def nodePid(i, id) do
+    IO.puts "node " <> to_string(i) <> ": trying 'misra" <> to_string(id) <> "'..."
+    :global.whereis_name String.to_atom("misra" <> to_string(id))
   end
 
-  def start(i, next, coordinator) do
-    IO.puts "node " <> to_string(i) <> " is getting PID for a neighbour at " <> next
-    pid = nodePid next
-    IO.puts "neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(pid)
-    :timer.sleep 2000
+  def start(i, next_ip, next_id, coordinator) do
+    :global.register_name String.to_atom("misra" <> to_string(i)), self
+    :timer.sleep 1500
+    name = String.to_atom("misra@" <> next_ip)
+    ret = Node.ping name
+    IO.puts "node " <> to_string(i) <> ": ping :\"misra@" <> next_ip <> "\" returned :" <> to_string(ret)
+    :timer.sleep 1500
+
+    IO.puts "node " <> to_string(i) <> ": getting PID for a neighbour at " <> next_ip
+    pid = nodePid i, next_id
+    IO.puts "node " <> to_string(i) <> ": neighbour pid for node " <> to_string(i) <> " is " <> to_string :erlang.pid_to_list(pid)
+
+    :timer.sleep 1000
+
     send coordinator, {:start, i}
 
     pingPid = spawn MisraToken, :loop, [:ping, i, pid, 0, false, false]
@@ -53,21 +62,25 @@ defmodule MisraToken do
   end
 
   def supervisor(id, pingPid, pongPid) do
+    :timer.sleep 1500
+
     receive do
       {what, value} ->
         IO.puts "node " <> to_string(id) <> ": supervisor received '" <> to_string(what) <> "' with value " <> to_string(value)
 
-        if what in [:ping, :csend] do
+        if what == :ping do
           send pingPid, {what, value}
         else
           send pongPid, {what, value}
         end
     end
+
+    supervisor id, pingPid, pongPid
   end
 
-  def coordLoop(ids, ips, next, start \\ true) do
+  def coordLoop(ids, ips, next, nids, start \\ true) do
     if start do
-      startNodes(ids, ips, next)
+      startNodes(ids, ips, next, nids)
       IO.puts "nodes started, waiting for incoming messages..."
     end
   end
@@ -81,12 +94,15 @@ defmodule MisraToken do
   end
 
   def loop(what, node_id, next_pid, m, has_ping, has_pong) do
-    :timer.sleep 500
-
     receive do
       {:csend, value} -> # CS end
-        IO.puts "node " <> to_string(node_id) <> ": PASSing PING to the next node"
-        send next_pid, {:ping, value}
+        if has_pong and abs(m) == abs(value) do
+          IO.puts "node " <> to_string(node_id) <>": INCarnating tokens"
+          incarnate next_pid, value
+        else
+          IO.puts "node " <> to_string(node_id) <> ": PASSing PING to the next node"
+          send next_pid, {:ping, value}
+        end
 
         loop(what, node_id, next_pid, value, false, has_pong)
 
@@ -98,12 +114,7 @@ defmodule MisraToken do
           {_, value} = msg
           send next_pid, msg
         end
-          
-        if has_ping and has_pong and abs(m) == abs(value) do
-          IO.puts "node " <> to_string(node_id) <>": INCarnating tokens"
-          incarnate next_pid, value
-        end
-
+           
         if what == :ping do
           if not has_ping do
             spawn MisraToken, :cs, [node_id, self, value]
@@ -113,7 +124,10 @@ defmodule MisraToken do
             loop what, node_id, next_pid, m, true, has_pong
           end
         else
-          send next_pid, {:pong, value}
+          if not has_ping, do:
+            send(next_pid, {:pong, value}),
+          else:
+            send(self, {:pong, value})
           loop what, node_id, next_pid, value, has_ping, true
         end
       #{:chm, next_m} -> # change of "m"
@@ -138,7 +152,7 @@ defmodule MisraToken do
 
       Node.start String.to_atom("misra@" <> my_ip)
       
-      pid = nodePid next_ip
+      pid = nodePid id, 0  # TODO: fix
       
       :timer.sleep 5000
       MisraToken.start id, pid
