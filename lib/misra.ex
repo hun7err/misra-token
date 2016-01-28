@@ -5,9 +5,6 @@ defmodule MisraToken do
     propagate rcpt, t
   end
   def propagate(_, values) when values == [], do: :ok
-
-  defp regenerate(x), do: {abs(x), -abs(x)}
-  defp incarnate(next, x), do: propagate next, [{:ping, abs(x)+1}, {:pong, -abs(x)-1}]
   
   def cs(i, parent, value) do
     IO.puts "node " <> to_string(i) <> ": entering CS"
@@ -52,30 +49,10 @@ defmodule MisraToken do
 
     send coordinator, {:start, i}
 
-    pingPid = spawn MisraToken, :loop, [:ping, i, pid, 0, false, false]
-    pongPid = spawn MisraToken, :loop, [:pong, i, pid, 0, false, false]
-
     if i == 0, do:
       propagate self, [{:ping, 1}, {:pong, -1}]
 
-    supervisor i, pingPid, pongPid
-  end
-
-  def supervisor(id, pingPid, pongPid) do
-    :timer.sleep 1500
-
-    receive do
-      {what, value} ->
-        IO.puts "node " <> to_string(id) <> ": supervisor received '" <> to_string(what) <> "' with value " <> to_string(value)
-
-        if what == :ping do
-          send pingPid, {what, value}
-        else
-          send pongPid, {what, value}
-        end
-    end
-
-    supervisor id, pingPid, pongPid
+    loop i, pid, 0, false
   end
 
   def coordLoop(ids, ips, next, nids, start \\ true) do
@@ -85,55 +62,54 @@ defmodule MisraToken do
     end
   end
 
-  def other(what, values) do
-    {ping, pong} = values
-    case what do
-      :ping -> {:pong, pong}
-      :pong -> {:ping, ping}
-    end
-  end
+  def loop(node_id, next_pid, m, in_cs) do
+    :timer.sleep 1500
+    #IO.puts "node " <> to_string(node_id) <> ": loop(m => " <> to_string(m) <> ", in_cs => " <> to_string(in_cs) <> ")"
 
-  def loop(what, node_id, next_pid, m, has_ping, has_pong) do
     receive do
-      {:csend, value} -> # CS end
-        if has_pong and abs(m) == abs(value) do
-          IO.puts "node " <> to_string(node_id) <>": INCarnating tokens"
-          incarnate next_pid, value
-        else
-          IO.puts "node " <> to_string(node_id) <> ": PASSing PING to the next node"
-          send next_pid, {:ping, value}
-        end
+      {:csend, _} -> # CS end
+        send next_pid, {:ping, abs(m)}
 
-        loop(what, node_id, next_pid, value, false, has_pong)
+        loop node_id, next_pid, abs(m), false
 
-      {what, value} ->
+      {:ping, value} ->
+        IO.puts "node " <> to_string(node_id) <> ": PING with value " <> to_string(value)
+        new_m = m
+
         if m == value do
-          IO.puts "node " <> to_string(node_id) <> ": REGENerating tokens"
-
-          msg = other what, regenerate(value)
-          {_, value} = msg
-          send next_pid, msg
+          IO.puts "node " <> to_string(node_id) <> ": PONG lost, regenerating with value=" <> to_string(-value)
+          send next_pid, {:pong, -value}
+          new_m = -value
         end
-           
-        if what == :ping do
-          if not has_ping do
-            spawn MisraToken, :cs, [node_id, self, value]
-            loop what, node_id, next_pid, m, true, has_pong
+
+        if not in_cs do
+          spawn(MisraToken, :cs, [node_id, self, value])
+          loop node_id, next_pid, new_m, true
+        else
+          loop node_id, next_pid, new_m, in_cs
+        end
+
+      {:pong, value} ->
+        if node_id != 2 or value > -3 do
+          new_m = m
+
+          if m == value and not in_cs do
+            IO.puts "node " <> to_string(node_id) <> ": PING lost, regenerating with value=" <> to_string(abs(value))
+            send next_pid, {:ping, abs(value)}
+          end
+
+          IO.puts "node " <> to_string(node_id) <> ": PONG with value " <> to_string(value)
+
+          if not in_cs do
+            send next_pid, {:pong, value}
+            loop node_id, next_pid, value, in_cs
           else
-            send self, {:ping, value}
-            loop what, node_id, next_pid, m, true, has_pong
+            send next_pid, {:pong, value-1}
+            loop node_id, next_pid, value-1, in_cs
           end
         else
-          if not has_ping, do:
-            send(next_pid, {:pong, value}),
-          else:
-            send(self, {:pong, value})
-          loop what, node_id, next_pid, value, has_ping, true
+          loop node_id, next_pid, m, in_cs
         end
-      #{:chm, next_m} -> # change of "m"
-        #loop what, node_id, next_pid, next_m, other_pid, has_ping, has_pong
-      #{:chstate, state} ->  # what did I do this for, exactly?
-      #  loop what, node_id, next_pid, m, other_pid, has_ping, has_pong
     end
   end
 
